@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mapa de Espacios Silenciosos · España</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root {
+    --ink:        #1a1a2e;
+    --soft-ink:   #3d3d5c;
+    --mist:       #f0eff8;
+    --fog:        #e4e3f0;
+    --white:      #fafafa;
+    --border:     #d8d7e8;
+    --shadow:     0 2px 12px rgba(26,26,46,0.10);
+    --shadow-lg:  0 6px 28px rgba(26,26,46,0.16);
+    --r:          10px;
+    --font-head:  'DM Serif Display', Georgia, serif;
+    --font-body:  'DM Sans', system-ui, sans-serif;
+    --transition: 200ms ease;
+    --c-super:    #2a9d8f;
+    --c-super-d:  #e8f7f5;
+    --c-bib:      #d4a017;
+    --c-bib-d:    #fdf6e3;
+    --c-nat:      #40916c;
+    --c-nat-d:    #d8f3dc;
+    --c-civico:   #4895ef;
+    --c-civico-d: #e3f2fd;
+    --c-sun:      #f4c430;
+    --c-sun-d:    #fffbe6;
+    --c-aero:     #5e60ce;
+    --c-aero-d:   #eef0ff;
+    --c-cultura:  #e76f51;
+    --c-cultura-d:#fff0ed;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-body);
+    background: var(--mist);
+    color: var(--ink);
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* HEADER */
+  #header {
+    background: var(--ink); color: var(--white);
+    padding: 12px 20px; display: flex; align-items: center; gap: 16px;
+    flex-shrink: 0; box-shadow: var(--shadow-lg); z-index: 1000;
+  }
+  .header-icon { font-size: 26px; flex-shrink: 0; }
+  #header h1 { font-family: var(--font-head); font-size: 18px; font-weight: 400; line-height: 1.2; flex: 1; }
+  #header h1 span { font-style: italic; color: #52c9b9; }
+  #header p.subtitle { font-size: 11px; color: rgba(255,255,255,0.5); font-weight: 300; letter-spacing: 0.04em; text-transform: uppercase; margin-top: 2px; }
+
+  /* TOOLBAR */
+  #toolbar {
+    background: var(--white); border-bottom: 1px solid var(--border);
+    padding: 7px 14px; display: flex; align-items: center; gap: 6px;
+    flex-shrink: 0; z-index: 999; overflow-x: auto; scrollbar-width: none;
+  }
+  #toolbar::-webkit-scrollbar { display: none; }
+  .tb-sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; margin: 0 2px; }
+  .tb-label { font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--soft-ink); flex-shrink: 0; white-space: nowrap; }
+  .chip {
+    display: flex; align-items: center; gap: 5px; padding: 4px 11px;
+    border-radius: 20px; border: 1.5px solid var(--border); background: var(--white);
+    font-family: var(--font-body); font-size: 11.5px; font-weight: 500; color: var(--soft-ink);
+    cursor: pointer; transition: all var(--transition); white-space: nowrap; flex-shrink: 0;
+  }
+  .chip:hover { border-color: var(--soft-ink); }
+  .chip.active { background: var(--ink); color: var(--white); border-color: var(--ink); }
+  .chip.active[data-cat="supermercado"]     { background: var(--c-super);   border-color: var(--c-super);   color:#fff; }
+  .chip.active[data-cat="biblioteca"]       { background: var(--c-bib);     border-color: var(--c-bib);     color:#fff; }
+  .chip.active[data-cat="espacio_natural"]  { background: var(--c-nat);     border-color: var(--c-nat);     color:#fff; }
+  .chip.active[data-cat="centro_comercial"] { background: var(--c-super);   border-color: var(--c-super);   color:#fff; }
+  .chip.active[data-cat="aeropuerto"]       { background: var(--c-aero);    border-color: var(--c-aero);    color:#fff; }
+  .chip.active[data-cat="sunflower"]        { background: var(--c-sun);     border-color: var(--c-sun);     color: var(--ink); }
+  .chip.active[data-cat="cultura"]          { background: var(--c-cultura); border-color: var(--c-cultura); color:#fff; }
+  .chip.active[data-cat="centro_civico"]    { background: var(--c-civico);  border-color: var(--c-civico);  color:#fff; }
+  .spacer { flex: 1; min-width: 8px; }
+  #btn-suggest {
+    display: flex; align-items: center; gap: 6px; padding: 5px 14px; border-radius: 20px;
+    border: 1.5px solid var(--c-super); background: var(--c-super); color: white;
+    font-family: var(--font-body); font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all var(--transition); text-decoration: none; white-space: nowrap; flex-shrink: 0;
+  }
+  #btn-suggest:hover { background: var(--ink); border-color: var(--ink); }
+
+  /* MAP */
+  #map-container { flex: 1; position: relative; overflow: hidden; }
+  #map { width: 100%; height: 100%; }
+
+  /* LEAFLET */
+  .leaflet-popup-content-wrapper {
+    border-radius: var(--r) !important; box-shadow: var(--shadow-lg) !important;
+    padding: 0 !important; overflow: hidden; font-family: var(--font-body) !important;
+    min-width: 260px; max-width: 330px;
+  }
+  .leaflet-popup-content { margin: 0 !important; width: auto !important; }
+  .leaflet-popup-tip-container { display: none; }
+  .leaflet-popup-close-button { color: var(--soft-ink) !important; font-size: 20px !important; top: 8px !important; right: 10px !important; z-index: 10; }
+
+  /* POPUP */
+  .pop-header { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); }
+  .pop-meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+  .pop-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 12px;
+  }
+  .badge-supermercado     { background: var(--c-super-d);   color: var(--c-super); }
+  .badge-biblioteca       { background: var(--c-bib-d);     color: #7a5c00; }
+  .badge-sala_estudio     { background: var(--c-bib-d);     color: #7a5c00; }
+  .badge-espacio_natural  { background: var(--c-nat-d);     color: var(--c-nat); }
+  .badge-centro_civico    { background: var(--c-civico-d);  color: var(--c-civico); }
+  .badge-centro_comercial { background: var(--c-super-d);   color: var(--c-super); }
+  .badge-aeropuerto       { background: var(--c-aero-d);    color: var(--c-aero); }
+  .badge-sunflower        { background: var(--c-sun-d);     color: #7a6000; }
+  .badge-cultura          { background: var(--c-cultura-d); color: var(--c-cultura); }
+  .badge-default          { background: var(--fog);         color: var(--soft-ink); }
+  .pop-verif {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 10px;
+  }
+  .verif-VERIFICADO    { background: #e8f5e9; color: #2e7d32; }
+  .verif-PENDIENTE     { background: var(--c-bib-d); color: #7a5c00; }
+  .verif-NO_VERIFICADO { background: #fce4ec; color: #b71c1c; }
+  .pop-nombre { font-family: var(--font-head); font-size: 15px; line-height: 1.3; color: var(--ink); font-weight: 400; }
+  .pop-body { padding: 10px 16px 14px; display: flex; flex-direction: column; gap: 6px; }
+  .pop-row { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; color: var(--soft-ink); line-height: 1.4; }
+  .pop-row .ico { flex-shrink: 0; font-size: 13px; margin-top: 1px; }
+  .pop-hs {
+    background: var(--c-super-d); border: 1px solid #52c9b9; border-radius: 6px;
+    padding: 6px 10px; font-size: 12px; color: var(--ink); display: flex; align-items: center; gap: 6px;
+  }
+  .pop-info {
+    background: var(--c-sun-d); border: 1px solid var(--c-sun); border-radius: 6px;
+    padding: 6px 10px; font-size: 12px; color: var(--ink); display: flex; align-items: flex-start; gap: 6px; line-height: 1.4;
+  }
+  .pop-info.aero { background: var(--c-aero-d); border-color: var(--c-aero); }
+  .pop-fuente {
+    display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--soft-ink);
+    padding-top: 4px; border-top: 1px solid var(--border); margin-top: 4px;
+  }
+  .pop-fuente a { color: var(--c-super); text-decoration: none; word-break: break-all; }
+  .pop-fuente a:hover { text-decoration: underline; }
+
+  /* MARKERS */
+  .marker-wrap { width: 34px; height: 40px; }
+  .marker-body {
+    width: 34px; height: 34px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
+    display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 8px rgba(0,0,0,0.25);
+  }
+  .marker-icon { transform: rotate(45deg); font-size: 15px; line-height: 1; }
+  .m-supermercado     { background: var(--c-super); }
+  .m-biblioteca       { background: var(--c-bib); }
+  .m-sala_estudio     { background: var(--c-bib); }
+  .m-espacio_natural  { background: var(--c-nat); }
+  .m-centro_comercial { background: var(--c-super); }
+  .m-centro_civico    { background: var(--c-civico); }
+  .m-aeropuerto       { background: var(--c-aero); }
+  .m-sunflower        { background: var(--c-sun); }
+  .m-cultura          { background: var(--c-cultura); }
+  .m-default          { background: var(--soft-ink); }
+
+  /* LEGEND */
+  #legend {
+    position: absolute; bottom: 24px; right: 12px;
+    background: var(--white); border: 1px solid var(--border); border-radius: var(--r);
+    padding: 12px 14px; box-shadow: var(--shadow); z-index: 500; min-width: 185px;
+    font-size: 11.5px; color: var(--soft-ink);
+  }
+  #legend h4 { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink); margin-bottom: 8px; }
+  .leg-row { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+  .leg-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+
+  /* COUNT */
+  #count-badge {
+    position: absolute; top: 12px; left: 12px;
+    background: var(--white); border: 1px solid var(--border); border-radius: 20px;
+    padding: 5px 12px; font-size: 11.5px; font-weight: 500; color: var(--soft-ink);
+    box-shadow: var(--shadow); z-index: 500; pointer-events: none;
+  }
+  #count-badge b { color: var(--ink); }
+
+  @media (max-width: 600px) {
+    #header h1 { font-size: 15px; }
+    #legend { display: none; }
+    .leaflet-popup-content-wrapper { max-width: 290px; }
+  }
+</style>
+</head>
+<body>
+
+<header id="header">
+  <div class="header-icon">🤫</div>
+  <div>
+    <h1>Espacios <span>silenciosos</span> · España</h1>
+    <p class="subtitle">Lugares tranquilos · Hora silenciosa · TEA · Discapacidad invisible</p>
+  </div>
+</header>
+
+<div id="toolbar">
+  <span class="tb-label">Filtrar</span>
+  <button class="chip active" data-cat="all"              onclick="ft('all')">🗺️ Todos</button>
+  <button class="chip"        data-cat="supermercado"     onclick="ft('supermercado')">🛒 Hora silenciosa</button>
+  <button class="chip"        data-cat="centro_comercial" onclick="ft('centro_comercial')">🏬 C. Comercial</button>
+  <button class="chip"        data-cat="aeropuerto"       onclick="ft('aeropuerto')">✈️ Aeropuertos</button>
+  <button class="chip"        data-cat="sunflower"        onclick="ft('sunflower')">🌻 Discap. invisible</button>
+  <button class="chip"        data-cat="biblioteca"       onclick="ft('biblioteca')">📚 Bibliotecas</button>
+  <button class="chip"        data-cat="espacio_natural"  onclick="ft('espacio_natural')">🌿 Naturaleza</button>
+  <button class="chip"        data-cat="cultura"          onclick="ft('cultura')">🎭 Cultura</button>
+  <button class="chip"        data-cat="centro_civico"    onclick="ft('centro_civico')">🏛️ Cívico</button>
+  <div class="spacer"></div>
+  <a id="btn-suggest" href="#" onclick="openSuggest();return false;">＋ Sugerir lugar</a>
+</div>
+
+<div id="map-container">
+  <div id="map"></div>
+  <div id="count-badge"><b id="count-num">–</b> lugares visibles</div>
+  <div id="legend">
+    <h4>Leyenda</h4>
+    <div class="leg-row"><span class="leg-dot" style="background:#2a9d8f"></span>Hora silenciosa / CC</div>
+    <div class="leg-row"><span class="leg-dot" style="background:#5e60ce"></span>Aeropuerto</div>
+    <div class="leg-row"><span class="leg-dot" style="background:#f4c430"></span>Discapacidad invisible 🌻</div>
+    <div class="leg-row"><span class="leg-dot" style="background:#d4a017"></span>Biblioteca / Estudio</div>
+    <div class="leg-row"><span class="leg-dot" style="background:#40916c"></span>Espacio natural</div>
+    <div class="leg-row"><span class="leg-dot" style="background:#e76f51"></span>Cultura</div>
+    <div class="leg-row"><span class="leg-dot" style="background:#4895ef"></span>Centro cívico</div>
+  </div>
+</div>
+
+<script>
+const TIPO_ICON  = { supermercado:"🛒",biblioteca:"📚",sala_estudio:"✏️",espacio_natural:"🌿",centro_civico:"🏛️",centro_comercial:"🏬",aeropuerto:"✈️",sunflower:"🌻",cultura:"🎭",museo:"🎨",hotel:"🏨",coworking:"💼",otro:"📍" };
+const TIPO_LABEL = { supermercado:"Hora silenciosa",biblioteca:"Biblioteca / Estudio",sala_estudio:"Sala de estudio",espacio_natural:"Espacio natural",centro_civico:"Centro cívico",centro_comercial:"Centro comercial",aeropuerto:"Aeropuerto",sunflower:"Discapacidad invisible 🌻",cultura:"Cultura",museo:"Museo",hotel:"Hotel",coworking:"Coworking",otro:"Otro" };
+const ic = t => TIPO_ICON[t]  || "📍";
+const lb = t => TIPO_LABEL[t] || t;
+
+function mkMarker(tipo) {
+  return L.divIcon({ className:"", iconSize:[34,40], iconAnchor:[17,40], popupAnchor:[0,-42],
+    html:`<div class="marker-wrap"><div class="marker-body m-${tipo||'default'}"><span class="marker-icon">${ic(tipo)}</span></div></div>`
+  });
+}
+
+function mkPopup(p) {
+  const t  = p.tipo || "default";
+  const vi = p.verificacion === "VERIFICADO" ? "✓" : "⏳";
+  const vc = `verif-${p.verificacion||"PENDIENTE"}`;
+  const hs = p.hora_silenciosa
+    ? `<div class="pop-hs"><span>🤫</span><div><b>Hora silenciosa</b><br>${p.hora_silenciosa}</div></div>` : "";
+  let info = "";
+  if (t === "sunflower") {
+    info = `<div class="pop-info"><span>🌻</span><div>Establecimientos adheridos al programa <b>Hidden Disabilities Sunflower</b>. El personal reconoce el cordón de girasol y ofrece ayuda discreta.<br><a href="https://hdsunflower.com/find-the-sunflower" target="_blank" rel="noopener">Ver mapa oficial →</a></div></div>`;
+  } else if (t === "aeropuerto" && p.fuente_tramite) {
+    info = `<div class="pop-info aero"><span>♿</span><div>Solicita el <b>Distintivo de Discapacidad Invisible de AENA</b> antes de tu vuelo:<br><a href="${p.fuente_tramite}" target="_blank" rel="noopener">Formulario AENA →</a></div></div>`;
+  }
+  const dir  = p.direccion       ? `<div class="pop-row"><span class="ico">📍</span><span>${p.direccion}</span></div>` : "";
+  const hor  = p.horario_general ? `<div class="pop-row"><span class="ico">🕐</span><span>${p.horario_general}</span></div>` : "";
+  const desc = p.descripcion     ? `<div class="pop-row"><span class="ico">ℹ️</span><span>${p.descripcion}</span></div>` : "";
+  const src  = p.fuente_url      ? `<div class="pop-fuente">🔗 <a href="${p.fuente_url}" target="_blank" rel="noopener">Fuente verificada</a></div>` : "";
+  return `<div class="pop-header"><div class="pop-meta"><span class="pop-badge badge-${t}">${ic(t)} ${lb(t)}</span><span class="pop-verif ${vc}">${vi} ${p.verificacion||"Pendiente"}</span></div><div class="pop-nombre">${p.nombre}</div></div><div class="pop-body">${hs}${info}${dir}${hor}${desc}${src}</div>`;
+}
+
+// ── MAP ──
+const map = L.map("map",{center:[40.2,-3.6],zoom:6});
+L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",{
+  attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/">CARTO</a>',
+  subdomains:"abcd",maxZoom:19
+}).addTo(map);
+
+// ── DATA ──
+const FEATURES = [
+  // SUPERMERCADOS
+  // Carrefour — pin informativo central (la cadena tiene cientos de tiendas en toda España)
+  {c:[-3.6826,40.4015],p:{id:"REAL-001",nombre:"Carrefour España — Hora silenciosa en todos sus centros",tipo:"supermercado",subtipo:"hora_silenciosa",direccion:"Todos los hipermercados y 147 centros Carrefour Market en España",ciudad:"España (red nacional)",horario_general:"Variable por centro",hora_silenciosa:"Todos los días: 15:00–16:00",descripcion:"Primera cadena en implantar la Hora Silenciosa en España (julio 2021). Sin música, sin megafonía salvo emergencias, reducción lumínica y sonido de cajas. Este pin es informativo — busca tu Carrefour más cercano en su web.",fuente_url:"https://autismo.org.es/actualidad/noticias/carrefour-espana-extiende-la-hora-silenciosa-a-favor-de-las-personas-con-autismo-e-hipersensibilidad-sensorial-a-sus-centros-carrefour-market/",verificacion:"VERIFICADO"}},
+
+  // Altoaragón — 15 tiendas con hora silenciosa verificadas (fuente: cabreroehijos.es/tiendas + igastroaragon.com)
+  // Huesca capital (8 tiendas)
+  {c:[-0.4133,42.1401],p:{id:"REAL-002a",nombre:"Altoaragón — Huesca 1 (Ramón y Cajal)",tipo:"supermercado",subtipo:"hora_silenciosa",direccion:"P. Ramón y Cajal 1-3, 22001 Huesca",ciudad:"Huesca",comunidad_autonoma:"Aragón",horario_general:"Lun–Sáb: 09:00–21:00",hora_silenciosa:"Todos los días: 15:00–16:00",descripcion:"Sin música, sin megafonía, reducción lumínica.",fuente_url:"https://www.cabreroehijos.es/s_huesca1",verificacion:"VERIFICADO"}},
+  {c:[-0.4089,42.1368],p:{id:"REAL-002b",nombre:"Altoaragón — Huesca 2 (Menéndez Pidal)",tipo:"supermercado",subtipo:"hora_silenciosa",direccion:"Avda. Menéndez Pidal 11, 22003 Huesca",ciudad:"Huesca",comunidad_autonoma:"Aragón",horario_general:"Lun–Sáb: 09:00–21:00",hora_silenciosa:"Todos los días: 15:00–16:00",descripcion:"Sin música, sin megafonía, reducción lumínica.",fuente_url:"https://www.cabreroehijos.es/s_huesca2",verificacion:"VERIFICADO"}},
+  {c:[-0.4097,42.1385],p:{id:"REAL-002c",nombre:"Altoaragón — Huesca 3 (Zaragoza)",tipo:"supermercado",subtipo:"hora_silenciosa",direccion:"C/ Zaragoza 11, 22002 Huesca",ciudad:"Huesca",comunidad_autonoma:"Aragón",horario_general:"Lun–Sáb: 09:00–21:00",hora_silenciosa:"Todos los días: 15:00–16:00",descripcion:"Sin música, sin megafonía, reducción lumínica.",fuente_url:"https://www.cabreroehijos.es/s_huesca3",verificacion:"VERIFICADO"}},
+  {c:[-0.4250,42.1450],p:{id:"REAL-002d",nombre:"Altoaragón — Huesca 4 (Pirineos)",tipo:"supermercado",subtipo:"hora_silenciosa",direccion:"Avda. Pirineos 10-12, 22002 Huesca",ciudad:"Huesca",comunidad_autonoma:"Aragón",horario_general:"Lun–Sáb: 09:00–21:00",hora_silenciosa:"Todos los días: 15:00–16:00",descripcion:"Sin música, sin megafonía, reducción lumínica.",fuente_url:"https://www.cabreroehijos.es/s_huesca4",verificacion:"VERIFICADO"}},
+  {c:[-0.4002,42.1330],p:{id:"REAL-002e",nombre:"Altoaragón — Huesca 5 (Ramón J. Sender)",tipo:"supermercado",subtipo:"hora_silenciosa",direccion:"P. Ramón J. Sender 5, 22005 Huesca",ciudad:"Huesca",comunidad_autonoma:"Aragón",horario_general:"Lun–Sáb: 09:00–21:00",hora_silenciosa:"Todos los días: 15:00–16:00",descripcion:"Sin música, sin megafonía, reducción lumínica.",fuente_url:"https://www.cabreroehijos.es/s_huesca5",verificacion:"VERIFICADO"}},
+  {c:[-0.4160,42.1355],p:{id:"REAL-002f",nombre:"Altoaragón — Huesca 6 (Martínez de Velasco)",tipo:"supermercado",subtipo:"hora_silenciosa",direccion:"Avda. Martínez de Velasco 39-41, 22004 Huesca",ciudad:"Huesca",comunidad_autonoma:"Aragón",horario_general:"Lun–Sáb: 09:00–21:00",hora_silenciosa:"Todos los días: 15:00–16:00",descripcion:"Sin música, sin megafonía, reducción lumínica.",fuente_url:"https://www.cabreroehijos.es/s_huesca6",verificacion:"VERIFICADO"}},
+  {c:[-0.4030,42.1310],p:{id:"REAL-002g",nombre:"Altoaragón — Huesca 7 (Teruel)",tipo:"supermercado",subtipo:"hora_silenciosa",direccion:"C/ Teruel 12-14, 22005 Huesca",ciudad:"Huesca",comunidad_autonoma:"Aragón",horario_general:"Lun–Sáb: 09:00–21:00",hora_silenciosa:"Todos los días: 15:00–16:00",descripcion:"Sin música, sin megafonía, reducción lumínica.",fuente_url:"https://www.cabreroehijos.es/s_huesca7",verificacion:"VERIFICADO"}},
+  {c:[-0.4108,42.1420],p:{id:"REAL-002h",nombre:"Altoaragón — Huesca 8 (Capuchinas)",tipo:"supermercado",subtipo:"hora_silenciosa",direccion:"C/ Capuchinas 1, 22003 Huesca",ciudad:"Huesca",comunidad_autonoma:"Aragón",horario_general:"Lun–Sáb: 09:00–21:00",hora_silenciosa:"Todos los días: 15:00–16:00",descripcion:"Sin música, sin megafonía, reducción lumínica.",fuente_url:"https://www.cabreroehijos.es/s_huesca8",verificacion:"VERIFICADO"}},
+  // Barbastro (2 tiendas)
+  {c:[0.1240,42.0350],p:{id:"REAL-002i",nombre:"Altoaragón — Barbastro 1 (Camino de la Barca)",tipo:"supermercado",subtipo:"hora_silenciosa",direccion:"Camino de la Barca 6-8, 22300 Barbastro",ciudad:"Barbastro",comunidad_autonoma:"Aragón",horario_general:"Lun–Sáb: 09:00–21:00",hora_silenciosa:"Todos los días: 15:00–16:00",descripcion:"Sin música, sin megafonía, reducción lumínica.",fuente_url:"https://www.cabreroehijos.es/s_barbastro1",verificacion:"VERIFICADO"}},
+  {c:[0.1275,42.0330],p:{id:"REAL-002j",nombre:"Altoaragón — Barbastro 2 (Federico García Lorca)",tipo:"supermercado",subtipo:"hora_silenciosa",direccion:"C/ Federico García Lorca 6-A, 22300 Barbastro",ciudad:"Barbastro",comunidad_autonoma:"Aragón",horario_general:"Lun–Sáb: 09:00–21:00",hora_silenciosa:"Todos los días: 15:00–16:00",descripcion:"Sin música, sin megafonía, reducción lumínica.",fuente_url:"https://www.cabreroehijos.es/s_barbastro2",verificacion:"VERIFICADO"}},
+  // Jaca (2 tiendas)
+  {c:[-0.5520,42.5700],p:{id:"REAL-002k",nombre:"Altoaragón — Jaca 1 (Avda. Francia)",tipo:"supermercado",subtipo:"hora_silenciosa",direccion:"Avda. Francia 6, 22700 Jaca",ciudad:"Jaca",comunidad_autonoma:"Aragón",horario_general:"Lun–Sáb: 09:00–21:00",hora_silenciosa:"Todos los días: 15:00–16:00",descripcion:"Sin música, sin megafonía, reducción lumínica.",fuente_url:"https://www.cabreroehijos.es/s_jaca1",verificacion:"VERIFICADO"}},
+  {c:[-0.5490,42.5680],p:{id:"REAL-002l",nombre:"Altoaragón — Jaca 2 (Correos)",tipo:"supermercado",subtipo:"hora_silenciosa",direccion:"C/ Correos 9, 22700 Jaca",ciudad:"Jaca",comunidad_autonoma:"Aragón",horario_general:"Lun–Sáb: 09:00–21:00",hora_silenciosa:"Todos los días: 15:00–16:00",descripcion:"Sin música, sin megafonía, reducción lumínica.",fuente_url:"https://www.cabreroehijos.es/s_jaca2",verificacion:"VERIFICADO"}},
+  // Sabiñánigo (2 tiendas)
+  {c:[-0.3630,42.5180],p:{id:"REAL-002m",nombre:"Altoaragón — Sabiñánigo 1 (Coli Escalona 10)",tipo:"supermercado",subtipo:"hora_silenciosa",direccion:"Coli Escalona 10, 22600 Sabiñánigo",ciudad:"Sabiñánigo",comunidad_autonoma:"Aragón",horario_general:"Lun–Sáb: 09:00–21:00",hora_silenciosa:"Todos los días: 15:00–16:00",descripcion:"Sin música, sin megafonía, reducción lumínica.",fuente_url:"https://www.cabreroehijos.es/s_sabi1",verificacion:"VERIFICADO"}},
+  {c:[-0.3600,42.5155],p:{id:"REAL-002n",nombre:"Altoaragón — Sabiñánigo 2 (Coli Escalona 68)",tipo:"supermercado",subtipo:"hora_silenciosa",direccion:"Coli Escalona 68, 22600 Sabiñánigo",ciudad:"Sabiñánigo",comunidad_autonoma:"Aragón",horario_general:"Lun–Sáb: 09:00–21:00",hora_silenciosa:"Todos los días: 15:00–16:00",descripcion:"Sin música, sin megafonía, reducción lumínica.",fuente_url:"https://www.cabreroehijos.es/s_sabi2",verificacion:"VERIFICADO"}},
+  // Monzón (1 tienda)
+  {c:[0.1910,41.9130],p:{id:"REAL-002o",nombre:"Altoaragón — Monzón (San Francisco)",tipo:"supermercado",subtipo:"hora_silenciosa",direccion:"C/ San Francisco 7, 22400 Monzón",ciudad:"Monzón",comunidad_autonoma:"Aragón",horario_general:"Lun–Sáb: 09:00–21:00",hora_silenciosa:"Todos los días: 15:00–16:00",descripcion:"Sin música, sin megafonía, reducción lumínica.",fuente_url:"https://www.cabreroehijos.es/s_monzon1",verificacion:"VERIFICADO"}},
+  // CENTROS COMERCIALES
+  {c:[2.2115,41.4107],p:{id:"REAL-003",nombre:"Centro Comercial Diagonal Mar",tipo:"centro_comercial",subtipo:"hora_silenciosa",direccion:"Plaça del Llevant, 1, 08019 Barcelona",ciudad:"Barcelona",horario_general:"Lunes a domingo: 10:00–22:00",hora_silenciosa:"Todos los días: 15:00–16:00. Mochilas sensoriales disponibles.",descripcion:"Implantó la hora silenciosa en abril 2024. Reducción de luz y música. Mochilas sensoriales en alquiler para visitantes.",fuente_url:"https://www.distribucionactualidad.com/hora-silenciosa-llega-mas-supermercados-y-centros-comerciales/",verificacion:"VERIFICADO"}},
+  {c:[-3.5062,40.3592],p:{id:"REAL-004",nombre:"Centro Comercial H2O — Hora de la Calma",tipo:"centro_comercial",subtipo:"hora_silenciosa",direccion:"Av. de Fuentemar s/n, 28522 Rivas-Vaciamadrid",ciudad:"Rivas-Vaciamadrid",horario_general:"Variable",hora_silenciosa:"Todos los días: 15:00–16:00 ('Hora de la Calma')",descripcion:"Reducción de iluminación y eliminación de música ambiental.",fuente_url:"https://www.distribucionactualidad.com/hora-silenciosa-llega-mas-supermercados-y-centros-comerciales/",verificacion:"VERIFICADO"}},
+  {c:[-3.3626,40.4831],p:{id:"REAL-005",nombre:"Centro Comercial Alcalá Magna",tipo:"centro_comercial",subtipo:"hora_silenciosa",direccion:"Avda. de los Colegios 10, 28802 Alcalá de Henares",ciudad:"Alcalá de Henares",horario_general:"Variable",hora_silenciosa:"Todos los días: 15:00–16:00",descripcion:"Implantó la hora silenciosa en abril 2024 junto a otros centros comerciales.",fuente_url:"https://www.distribucionactualidad.com/hora-silenciosa-llega-mas-supermercados-y-centros-comerciales/",verificacion:"VERIFICADO"}},
+  // AEROPUERTOS
+  {c:[-3.5679,40.4721],p:{id:"REAL-A01",nombre:"Aeropuerto Adolfo Suárez Madrid-Barajas",tipo:"aeropuerto",subtipo:"distintivo_discapacidad_invisible",direccion:"Av. de la Hispanidad s/n, 28042 Madrid",ciudad:"Madrid",horario_general:"Operativo las 24h",hora_silenciosa:null,descripcion:"Adherido al sistema de Distintivo de Discapacidad Invisible de AENA. Personal formado para asistir a personas con discapacidades no visibles (TEA, hipersensibilidad, ansiedad…). ⚠️ El lanyard Sunflower UK ya no es reconocido en aeropuertos AENA; usa el distintivo oficial.",fuente_url:"https://www.aena.es/es/pasajeros/viajeros/personas-con-necesidades-especiales/discapacidades-invisibles/distintivo-discapacidades-invisibles.html",fuente_tramite:"https://tramitesyreclamaciones.aena.es/distintivo_di/#/",verificacion:"VERIFICADO"}},
+  {c:[2.0785,41.2974],p:{id:"REAL-A02",nombre:"Aeropuerto Josep Tarradellas Barcelona-El Prat",tipo:"aeropuerto",subtipo:"distintivo_discapacidad_invisible",direccion:"08820 El Prat de Llobregat, Barcelona",ciudad:"Barcelona",horario_general:"Operativo las 24h",hora_silenciosa:null,descripcion:"Adherido al Distintivo de Discapacidad Invisible de AENA. ⚠️ El lanyard Sunflower UK no es reconocido; usa el distintivo oficial de AENA.",fuente_url:"https://www.aena.es/es/pasajeros/viajeros/personas-con-necesidades-especiales/discapacidades-invisibles/distintivo-discapacidades-invisibles.html",fuente_tramite:"https://tramitesyreclamaciones.aena.es/distintivo_di/#/",verificacion:"VERIFICADO"}},
+  {c:[-4.4993,36.6749],p:{id:"REAL-A03",nombre:"Aeropuerto Málaga-Costa del Sol ✚ sala silenciosa",tipo:"aeropuerto",subtipo:"sala_silenciosa",direccion:"Av. del Comandante García Morato s/n, 29004 Málaga",ciudad:"Málaga",horario_general:"Operativo las 24h",hora_silenciosa:"Sala silenciosa disponible — dirígete al Servicio de Atención al Pasajero (sujeto a disponibilidad)",descripcion:"Único aeropuerto AENA con sala silenciosa confirmada para personas con discapacidades invisibles y sensibilidad sensorial. Además del distintivo AENA, cuenta con este espacio de baja estimulación.",fuente_url:"https://aviaciondigital.com/papel-distintivo-capacidades-invisibles-aeropuertos/",fuente_tramite:"https://tramitesyreclamaciones.aena.es/distintivo_di/#/",verificacion:"VERIFICADO"}},
+  {c:[-0.5581,38.2822],p:{id:"REAL-A04",nombre:"Aeropuerto Alicante-Elche Miguel Hernández",tipo:"aeropuerto",subtipo:"distintivo_discapacidad_invisible",direccion:"Carretera N-332, 03195 Alicante",ciudad:"Alicante",horario_general:"Operativo las 24h",hora_silenciosa:null,descripcion:"Aeropuerto AENA con Distintivo de Discapacidad Invisible. Solicita el distintivo antes del vuelo.",fuente_url:"https://www.aena.es/es/pasajeros/viajeros/personas-con-necesidades-especiales/discapacidades-invisibles/distintivo-discapacidades-invisibles.html",fuente_tramite:"https://tramitesyreclamaciones.aena.es/distintivo_di/#/",verificacion:"VERIFICADO"}},
+  {c:[-5.8931,37.4180],p:{id:"REAL-A05",nombre:"Aeropuerto de Sevilla",tipo:"aeropuerto",subtipo:"distintivo_discapacidad_invisible",direccion:"Carretera N-IV Km 532, 41020 Sevilla",ciudad:"Sevilla",horario_general:"Operativo las 24h",hora_silenciosa:null,descripcion:"Aeropuerto AENA con Distintivo de Discapacidad Invisible.",fuente_url:"https://www.aena.es/es/pasajeros/viajeros/personas-con-necesidades-especiales/discapacidades-invisibles/distintivo-discapacidades-invisibles.html",fuente_tramite:"https://tramitesyreclamaciones.aena.es/distintivo_di/#/",verificacion:"VERIFICADO"}},
+  {c:[-0.4733,39.4893],p:{id:"REAL-A06",nombre:"Aeropuerto de Valencia",tipo:"aeropuerto",subtipo:"distintivo_discapacidad_invisible",direccion:"Av. dels Tarongers s/n, 46196 Valencia",ciudad:"Valencia",horario_general:"Operativo las 24h",hora_silenciosa:null,descripcion:"Aeropuerto AENA con Distintivo de Discapacidad Invisible.",fuente_url:"https://www.aena.es/es/pasajeros/viajeros/personas-con-necesidades-especiales/discapacidades-invisibles/distintivo-discapacidades-invisibles.html",fuente_tramite:"https://tramitesyreclamaciones.aena.es/distintivo_di/#/",verificacion:"VERIFICADO"}},
+  {c:[2.7388,39.5517],p:{id:"REAL-A07",nombre:"Aeropuerto de Palma de Mallorca",tipo:"aeropuerto",subtipo:"distintivo_discapacidad_invisible",direccion:"Can Pastilla, 07610 Palma, Illes Balears",ciudad:"Palma de Mallorca",horario_general:"Operativo las 24h",hora_silenciosa:null,descripcion:"Aeropuerto AENA con Distintivo de Discapacidad Invisible.",fuente_url:"https://www.aena.es/es/pasajeros/viajeros/personas-con-necesidades-especiales/discapacidades-invisibles/distintivo-discapacidades-invisibles.html",fuente_tramite:"https://tramitesyreclamaciones.aena.es/distintivo_di/#/",verificacion:"VERIFICADO"}},
+  {c:[-2.9112,43.3009],p:{id:"REAL-A08",nombre:"Aeropuerto de Bilbao",tipo:"aeropuerto",subtipo:"distintivo_discapacidad_invisible",direccion:"Loiu, 48180 Bizkaia",ciudad:"Bilbao",comunidad_autonoma:"País Vasco",horario_general:"Operativo las 24h",hora_silenciosa:null,descripcion:"Aeropuerto AENA con Distintivo de Discapacidad Invisible.",fuente_url:"https://www.aena.es/es/pasajeros/viajeros/personas-con-necesidades-especiales/discapacidades-invisibles/distintivo-discapacidades-invisibles.html",fuente_tramite:"https://tramitesyreclamaciones.aena.es/distintivo_di/#/",verificacion:"VERIFICADO"}},
+
+  {c:[-13.6052,28.9455],p:{id:"REAL-A09",nombre:"Aeropuerto César Manrique-Lanzarote",tipo:"aeropuerto",subtipo:"distintivo_discapacidad_invisible",direccion:"35509 Lanzarote, Las Palmas",ciudad:"Lanzarote",comunidad_autonoma:"Canarias",horario_general:"Operativo las 24h",hora_silenciosa:null,descripcion:"Aeropuerto AENA con Distintivo de Discapacidad Invisible. Solicita el distintivo antes del vuelo en la web de AENA.",fuente_url:"https://www.aena.es/es/pasajeros/viajeros/personas-con-necesidades-especiales/discapacidades-invisibles/distintivo-discapacidades-invisibles.html",fuente_tramite:"https://tramitesyreclamaciones.aena.es/distintivo_di/#/",verificacion:"VERIFICADO"}},
+
+  {c:[-13.8638,28.4527],p:{id:"REAL-A10",nombre:"Aeropuerto de Fuerteventura",tipo:"aeropuerto",subtipo:"distintivo_discapacidad_invisible",direccion:"35600 Puerto del Rosario, Fuerteventura",ciudad:"Fuerteventura",comunidad_autonoma:"Canarias",horario_general:"Operativo las 24h",hora_silenciosa:null,descripcion:"Aeropuerto AENA con Distintivo de Discapacidad Invisible.",fuente_url:"https://www.aena.es/es/pasajeros/viajeros/personas-con-necesidades-especiales/discapacidades-invisibles/distintivo-discapacidades-invisibles.html",fuente_tramite:"https://tramitesyreclamaciones.aena.es/distintivo_di/#/",verificacion:"VERIFICADO"}},
+
+  {c:[2.7604,41.9010],p:{id:"REAL-A11",nombre:"Aeropuerto de Girona-Costa Brava",tipo:"aeropuerto",subtipo:"distintivo_discapacidad_invisible",direccion:"17185 Vilobí d'Onyar, Girona",ciudad:"Girona",comunidad_autonoma:"Cataluña",horario_general:"Operativo las 24h",hora_silenciosa:null,descripcion:"Aeropuerto AENA con Distintivo de Discapacidad Invisible.",fuente_url:"https://www.aena.es/es/pasajeros/viajeros/personas-con-necesidades-especiales/discapacidades-invisibles/distintivo-discapacidades-invisibles.html",fuente_tramite:"https://tramitesyreclamaciones.aena.es/distintivo_di/#/",verificacion:"VERIFICADO"}},
+
+  {c:[-15.3866,27.9319],p:{id:"REAL-A12",nombre:"Aeropuerto de Gran Canaria",tipo:"aeropuerto",subtipo:"distintivo_discapacidad_invisible",direccion:"35230 Telde, Las Palmas",ciudad:"Gran Canaria",comunidad_autonoma:"Canarias",horario_general:"Operativo las 24h",hora_silenciosa:null,descripcion:"Aeropuerto AENA con Distintivo de Discapacidad Invisible.",fuente_url:"https://www.aena.es/es/pasajeros/viajeros/personas-con-necesidades-especiales/discapacidades-invisibles/distintivo-discapacidades-invisibles.html",fuente_tramite:"https://tramitesyreclamaciones.aena.es/distintivo_di/#/",verificacion:"VERIFICADO"}},
+
+  {c:[1.3731,38.8729],p:{id:"REAL-A13",nombre:"Aeropuerto de Ibiza",tipo:"aeropuerto",subtipo:"distintivo_discapacidad_invisible",direccion:"07820 Ibiza, Illes Balears",ciudad:"Ibiza",comunidad_autonoma:"Illes Balears",horario_general:"Operativo las 24h",hora_silenciosa:null,descripcion:"Aeropuerto AENA con Distintivo de Discapacidad Invisible.",fuente_url:"https://www.aena.es/es/pasajeros/viajeros/personas-con-necesidades-especiales/discapacidades-invisibles/distintivo-discapacidades-invisibles.html",fuente_tramite:"https://tramitesyreclamaciones.aena.es/distintivo_di/#/",verificacion:"VERIFICADO"}},
+
+  {c:[-1.0172,37.8035],p:{id:"REAL-A14",nombre:"Aeropuerto Internacional Región de Murcia",tipo:"aeropuerto",subtipo:"distintivo_discapacidad_invisible",direccion:"30564 Corvera, Murcia",ciudad:"Murcia",comunidad_autonoma:"Región de Murcia",horario_general:"Operativo las 24h",hora_silenciosa:null,descripcion:"Aeropuerto AENA con Distintivo de Discapacidad Invisible.",fuente_url:"https://www.aena.es/es/pasajeros/viajeros/personas-con-necesidades-especiales/discapacidades-invisibles/distintivo-discapacidades-invisibles.html",fuente_tramite:"https://tramitesyreclamaciones.aena.es/distintivo_di/#/",verificacion:"VERIFICADO"}},
+
+  {c:[4.2186,39.8626],p:{id:"REAL-A15",nombre:"Aeropuerto de Menorca",tipo:"aeropuerto",subtipo:"distintivo_discapacidad_invisible",direccion:"07712 Maó, Menorca, Illes Balears",ciudad:"Menorca",comunidad_autonoma:"Illes Balears",horario_general:"Operativo las 24h",hora_silenciosa:null,descripcion:"Aeropuerto AENA con Distintivo de Discapacidad Invisible.",fuente_url:"https://www.aena.es/es/pasajeros/viajeros/personas-con-necesidades-especiales/discapacidades-invisibles/distintivo-discapacidades-invisibles.html",fuente_tramite:"https://tramitesyreclamaciones.aena.es/distintivo_di/#/",verificacion:"VERIFICADO"}},
+
+  {c:[1.1672,41.1474],p:{id:"REAL-A16",nombre:"Aeropuerto de Reus",tipo:"aeropuerto",subtipo:"distintivo_discapacidad_invisible",direccion:"43206 Reus, Tarragona",ciudad:"Reus",comunidad_autonoma:"Cataluña",horario_general:"Operativo las 24h",hora_silenciosa:null,descripcion:"Aeropuerto AENA con Distintivo de Discapacidad Invisible.",fuente_url:"https://www.aena.es/es/pasajeros/viajeros/personas-con-necesidades-especiales/discapacidades-invisibles/distintivo-discapacidades-invisibles.html",fuente_tramite:"https://tramitesyreclamaciones.aena.es/distintivo_di/#/",verificacion:"VERIFICADO"}},
+
+  {c:[-8.4154,42.8963],p:{id:"REAL-A17",nombre:"Aeropuerto Santiago-Rosalía de Castro",tipo:"aeropuerto",subtipo:"distintivo_discapacidad_invisible",direccion:"15820 Santiago de Compostela, A Coruña",ciudad:"Santiago de Compostela",comunidad_autonoma:"Galicia",horario_general:"Operativo las 24h",hora_silenciosa:null,descripcion:"Aeropuerto AENA con Distintivo de Discapacidad Invisible.",fuente_url:"https://www.aena.es/es/pasajeros/viajeros/personas-con-necesidades-especiales/discapacidades-invisibles/distintivo-discapacidades-invisibles.html",fuente_tramite:"https://tramitesyreclamaciones.aena.es/distintivo_di/#/",verificacion:"VERIFICADO"}},
+
+  {c:[-16.3415,28.4827],p:{id:"REAL-A18",nombre:"Aeropuerto Tenerife Norte-Ciudad de La Laguna",tipo:"aeropuerto",subtipo:"distintivo_discapacidad_invisible",direccion:"38206 La Laguna, Tenerife",ciudad:"Tenerife Norte",comunidad_autonoma:"Canarias",horario_general:"Operativo las 24h",hora_silenciosa:null,descripcion:"Aeropuerto AENA con Distintivo de Discapacidad Invisible.",fuente_url:"https://www.aena.es/es/pasajeros/viajeros/personas-con-necesidades-especiales/discapacidades-invisibles/distintivo-discapacidades-invisibles.html",fuente_tramite:"https://tramitesyreclamaciones.aena.es/distintivo_di/#/",verificacion:"VERIFICADO"}},
+
+  {c:[-16.5725,28.0445],p:{id:"REAL-A19",nombre:"Aeropuerto Tenerife Sur",tipo:"aeropuerto",subtipo:"distintivo_discapacidad_invisible",direccion:"38611 San Miguel de Abona, Tenerife",ciudad:"Tenerife Sur",comunidad_autonoma:"Canarias",horario_general:"Operativo las 24h",hora_silenciosa:null,descripcion:"Aeropuerto AENA con Distintivo de Discapacidad Invisible.",fuente_url:"https://www.aena.es/es/pasajeros/viajeros/personas-con-necesidades-especiales/discapacidades-invisibles/distintivo-discapacidades-invisibles.html",fuente_tramite:"https://tramitesyreclamaciones.aena.es/distintivo_di/#/",verificacion:"VERIFICADO"}},
+
+  {c:[-8.6268,42.2318],p:{id:"REAL-A20",nombre:"Aeropuerto de Vigo",tipo:"aeropuerto",subtipo:"distintivo_discapacidad_invisible",direccion:"36318 Peinador, Vigo, Pontevedra",ciudad:"Vigo",comunidad_autonoma:"Galicia",horario_general:"Operativo las 24h",hora_silenciosa:null,descripcion:"Aeropuerto AENA con Distintivo de Discapacidad Invisible.",fuente_url:"https://www.aena.es/es/pasajeros/viajeros/personas-con-necesidades-especiales/discapacidades-invisibles/distintivo-discapacidades-invisibles.html",fuente_tramite:"https://tramitesyreclamaciones.aena.es/distintivo_di/#/",verificacion:"VERIFICADO"}},
+  // SUNFLOWER
+  {c:[-3.7038,40.4200],p:{id:"REAL-S01",nombre:"Red Hidden Disabilities Sunflower — España",tipo:"sunflower",subtipo:"red_sunflower",direccion:"Varios establecimientos en España",ciudad:"España",horario_general:"Variable por establecimiento",hora_silenciosa:null,descripcion:"Comercios, transportes y servicios adheridos al programa Sunflower en España. El personal reconoce el cordón de girasol y ofrece ayuda discreta a personas con discapacidades invisibles (TEA, autismo, ansiedad, Crohn, etc.). ⚠️ En aeropuertos AENA el lanyard Sunflower UK no es suficiente; usa el Distintivo de Discapacidad Invisible de AENA.",fuente_url:"https://hdsunflower.com/find-the-sunflower",verificacion:"VERIFICADO"}},
+  // BIBLIOTECAS
+  {c:[2.1833,41.3851],p:{id:"REAL-006",nombre:"Biblioteca/CRAI UPF — Espacios de Silencio (3 campus)",tipo:"biblioteca",subtipo:"sala_silencio",direccion:"Campus Ciutadella: Ramón Trias Fargas 25-27, 08005 Barcelona",ciudad:"Barcelona",horario_general:"Variable por campus. Consultar web UPF.",hora_silenciosa:null,descripcion:"La UPF ofrece espacios de silencio en 3 campus: Ciutadella (665 puntos), Poblenou (114) y Mar (149). Zonas de silencio estricto.",fuente_url:"https://www.upf.edu/es/web/biblioteca-informatica/espais/-/asset_publisher/qVFQ3NDE1dHm/content/000_model-d-espais/maximized",verificacion:"VERIFICADO"}},
+  {c:[1.1528,41.1189],p:{id:"REAL-007",nombre:"CRAI URV — Silent Space",tipo:"biblioteca",subtipo:"sala_silencio",direccion:"Campus Sescelades, Ctra. de Valls s/n, 43007 Tarragona",ciudad:"Tarragona",horario_general:"Consultar web URV",hora_silenciosa:null,descripcion:"El CRAI de la Universitat Rovira i Virgili dispone de 'Silent Spaces' para estudio y lectura en silencio.",fuente_url:"https://www.crai.urv.cat/en/about/spaces/silent-space/",verificacion:"VERIFICADO"}},
+  {c:[-3.8014,40.4530],p:{id:"REAL-008",nombre:"Biblioteca UCM Económicas — 'La Cápsula'",tipo:"biblioteca",subtipo:"cabina_insonorizada",direccion:"Campus Somosaguas, 28223 Pozuelo de Alarcón, Madrid",ciudad:"Pozuelo de Alarcón",horario_general:"Gratuita, sin reserva, máx. 30 min (ampliable).",hora_silenciosa:null,descripcion:"Cabina insonorizada (−30 dB) instalada en oct. 2023. Mesa y silla regulables, luz y ventilación controlables, USB-C. Aislamiento sensorial total.",fuente_url:"https://www.julianmarquina.es/biblioteca-universitaria-instala-una-cabina-insonorizada-para-estudio-sin-distracciones/",verificacion:"VERIFICADO"}},
+  // ESPACIOS NATURALES
+  {c:[1.1100044,41.1622409],p:{id:"REAL-009",nombre:"Plaza de Sant Jordi (Reus)",tipo:"espacio_natural",subtipo:"zona_tranquila",direccion:"Avinguda de Sant Jordi, 2, 43201 Reus",ciudad:"Reus",horario_general:"Abierto siempre",hora_silenciosa:null,descripcion:"Parque urbano extenso con jardines y masía modernista. Ambiente relajado y bajo nivel de ruido habitual.",fuente_url:"https://www.terrassa.cat/es/parc-de-sant-jordi",verificacion:"PENDIENTE"}},
+  {c:[-8.4049866,43.3870534],p:{id:"REAL-010",nombre:"Torre de Hércules y entorno",tipo:"espacio_natural",subtipo:"zona_tranquila",direccion:"Av. de Navarra s/n, 15002 A Coruña",ciudad:"A Coruña",horario_general:"Exterior: siempre. Interior: consultar horario oficial.",hora_silenciosa:null,descripcion:"Faro romano Patrimonio de la Humanidad. El paseo perimetral y acantilados están siempre abiertos y ofrecen gran tranquilidad con vistas al Atlántico.",fuente_url:"https://www.torredeherculesacoruna.com/",verificacion:"PENDIENTE"}},
+  {c:[-8.4363556,43.3771472],p:{id:"REAL-011",nombre:"Monte de San Pedro",tipo:"espacio_natural",subtipo:"zona_tranquila",direccion:"R/ Alfredo Vicenti s/n, 15002 A Coruña",ciudad:"A Coruña",horario_general:"09:00–22:00",hora_silenciosa:null,descripcion:"Parque en cima de monte con antiguas baterías militares reconvertidas. Sin tráfico rodado. Vistas panorámicas de la ría.",fuente_url:"https://www.coruna.gal/parques/es/detalle/monte-de-san-pedro/",verificacion:"PENDIENTE"}},
+  {c:[-8.4127778,43.3619444],p:{id:"REAL-012",nombre:"Parque de Santa Margarita",tipo:"espacio_natural",subtipo:"zona_tranquila",direccion:"R/ Manuel Murguía s/n, 15011 A Coruña",ciudad:"A Coruña",horario_general:"Abierto siempre (24h)",hora_silenciosa:null,descripcion:"El parque más grande de A Coruña. Amplias zonas arboladas, lago y áreas apartadas con bajo nivel de ruido.",fuente_url:"https://www.coruna.gal/parques/es/detalle/parque-de-santa-margarita/",verificacion:"PENDIENTE"}},
+  {c:[-8.4461389,43.3708889],p:{id:"REAL-013",nombre:"Ventana del Atlántico",tipo:"espacio_natural",subtipo:"zona_tranquila",direccion:"Paseo Marítimo del Parrote, 15001 A Coruña",ciudad:"A Coruña",horario_general:"Abierto siempre",hora_silenciosa:null,descripcion:"Mirador sobre el Atlántico en el paseo marítimo. Bajo nivel de estimulación sensorial artificial.",fuente_url:"https://www.turismo.coruna.es/",verificacion:"PENDIENTE"}},
+  {c:[-8.35,43.3483333],p:{id:"REAL-014",nombre:"Castillo de Santa Cruz de Oleiros",tipo:"espacio_natural",subtipo:"zona_tranquila",direccion:"Illa de Santa Cruz, Oleiros, A Coruña",ciudad:"Oleiros",horario_general:"10:00–14:00 y 17:00–20:00 (comprobar antes de ir)",hora_silenciosa:null,descripcion:"Castillo s. XVII en isla accesible a pie con marea baja. Entorno de baja afluencia con sonido del mar y aves.",fuente_url:"https://www.oleiros.org/web/es/turismo",verificacion:"PENDIENTE"}},
+  {c:[-8.0683333,43.4175],p:{id:"REAL-015",nombre:"Fragas do Eume",tipo:"espacio_natural",subtipo:"zona_tranquila",direccion:"Parque Natural Fragas do Eume, A Coruña",ciudad:"Pontedeume / Cabanas",horario_general:"Libre (en verano puede requerir reserva — consultar Xunta)",hora_silenciosa:null,descripcion:"Uno de los bosques atlánticos mejor conservados de Europa. Silencio casi total: solo agua del río y pájaros. Ideal para personas con hipersensibilidad sensorial.",fuente_url:"https://www.xunta.gal/parques-naturais/fraga-do-eume",verificacion:"PENDIENTE"}},
+
+  // ═══ SUNFLOWER — LUGARES ADHERIDOS (fuente: hdsunflower.com) ═══
+
+  {c:[-4.5197,36.5987],p:{id:"SUN-001",nombre:"Teleférico Benalmádena",tipo:"sunflower",subtipo:"ocio_familiar",direccion:"Explanada del Tivoli S/N, 29630 Benalmádena, Málaga",ciudad:"Benalmádena",comunidad_autonoma:"Andalucía",horario_general:"Consultar web oficial",hora_silenciosa:null,descripcion:"Teleférico panorámico adherido al programa Hidden Disabilities Sunflower. El personal reconoce el cordón de girasol y está formado para asistir a personas con discapacidades invisibles.",fuente_url:"https://hdsunflower.com/find-the-sunflower",verificacion:"VERIFICADO",fecha_verificacion:"2026-04-17"}},
+
+  {c:[-3.7481,40.4150],p:{id:"SUN-002",nombre:"Zoo Aquarium Madrid",tipo:"sunflower",subtipo:"ocio_familiar",direccion:"Casa de Campo S/N, 28011 Madrid",ciudad:"Madrid",comunidad_autonoma:"Comunidad de Madrid",horario_general:"Consultar web oficial",hora_silenciosa:null,descripcion:"Zoo Aquarium adherido al programa Hidden Disabilities Sunflower. Personal formado para reconocer el cordón de girasol y ofrecer apoyo discreto.",fuente_url:"https://hdsunflower.com/find-the-sunflower",verificacion:"VERIFICADO",fecha_verificacion:"2026-04-17"}},
+
+  {c:[-3.6017,40.4210],p:{id:"SUN-003",nombre:"Faunia",tipo:"sunflower",subtipo:"ocio_familiar",direccion:"Avenida de las Comunidades 2, 28032 Madrid",ciudad:"Madrid",comunidad_autonoma:"Comunidad de Madrid",horario_general:"Consultar web oficial",hora_silenciosa:null,descripcion:"Parque de naturaleza y fauna adherido al programa Hidden Disabilities Sunflower.",fuente_url:"https://hdsunflower.com/find-the-sunflower",verificacion:"VERIFICADO",fecha_verificacion:"2026-04-17"}},
+
+  {c:[-7.1480,37.2740],p:{id:"SUN-004",nombre:"Aquopolis Cartaya",tipo:"sunflower",subtipo:"parque_acuatico",direccion:"Carretera de Cartaya a El Rompido km 3, 21450 Cartaya, Huelva",ciudad:"Cartaya",comunidad_autonoma:"Andalucía",horario_general:"Temporada estival — consultar web",hora_silenciosa:null,descripcion:"Parque acuático adherido al programa Hidden Disabilities Sunflower. Personal formado para asistir a personas con discapacidades invisibles.",fuente_url:"https://hdsunflower.com/find-the-sunflower",verificacion:"VERIFICADO",fecha_verificacion:"2026-04-17"}},
+
+  {c:[1.1770,41.0750],p:{id:"SUN-005",nombre:"Aquopolis Costa Daurada – La Pineda",tipo:"sunflower",subtipo:"parque_acuatico",direccion:"Passeig de Pau Casals 65, 45481 Vilaseca, Tarragona",ciudad:"Vilaseca (Tarragona)",comunidad_autonoma:"Cataluña",horario_general:"Temporada estival — consultar web",hora_silenciosa:null,descripcion:"Parque acuático adherido al programa Hidden Disabilities Sunflower.",fuente_url:"https://hdsunflower.com/find-the-sunflower",verificacion:"VERIFICADO",fecha_verificacion:"2026-04-17"}},
+
+  {c:[-0.2530,39.1700],p:{id:"SUN-006",nombre:"Aquopolis Cullera",tipo:"sunflower",subtipo:"parque_acuatico",direccion:"Antigua Carretera Nazaret-Oliva km 33, 46400 Cullera, Valencia",ciudad:"Cullera",comunidad_autonoma:"Comunitat Valenciana",horario_general:"Temporada estival — consultar web",hora_silenciosa:null,descripcion:"Parque acuático adherido al programa Hidden Disabilities Sunflower.",fuente_url:"https://hdsunflower.com/find-the-sunflower",verificacion:"VERIFICADO",fecha_verificacion:"2026-04-17"}},
+
+  {c:[-0.6890,37.9760],p:{id:"SUN-007",nombre:"Aquopolis Torrevieja",tipo:"sunflower",subtipo:"parque_acuatico",direccion:"Avenida Delfina Viudes, 03183 Torrevieja, Alicante",ciudad:"Torrevieja",comunidad_autonoma:"Comunitat Valenciana",horario_general:"Temporada estival — consultar web",hora_silenciosa:null,descripcion:"Parque acuático adherido al programa Hidden Disabilities Sunflower.",fuente_url:"https://hdsunflower.com/find-the-sunflower",verificacion:"VERIFICADO",fecha_verificacion:"2026-04-17"}},
+
+  {c:[-3.9800,40.4550],p:{id:"SUN-008",nombre:"Aquopolis Villanueva de la Cañada",tipo:"sunflower",subtipo:"parque_acuatico",direccion:"Avenida Dehesa S/N, 28691 Villanueva de la Cañada, Madrid",ciudad:"Villanueva de la Cañada",comunidad_autonoma:"Comunidad de Madrid",horario_general:"Temporada estival — consultar web",hora_silenciosa:null,descripcion:"Parque acuático adherido al programa Hidden Disabilities Sunflower.",fuente_url:"https://hdsunflower.com/find-the-sunflower",verificacion:"VERIFICADO",fecha_verificacion:"2026-04-17"}},
+
+  {c:[-5.1670,36.4350],p:{id:"SUN-009",nombre:"Selwo Aventura Estepona",tipo:"sunflower",subtipo:"ocio_familiar",direccion:"Avenida Parque Selwo S/N, Autovía A-7 km 162, 29680 Estepona, Málaga",ciudad:"Estepona",comunidad_autonoma:"Andalucía",horario_general:"Consultar web oficial",hora_silenciosa:null,descripcion:"Parque de naturaleza salvaje adherido al programa Hidden Disabilities Sunflower. Personal formado para asistir a personas con discapacidades invisibles.",fuente_url:"https://hdsunflower.com/find-the-sunflower",verificacion:"VERIFICADO",fecha_verificacion:"2026-04-17"}},
+
+  {c:[-4.5180,36.5970],p:{id:"SUN-010",nombre:"Selwo Marina Benalmádena",tipo:"sunflower",subtipo:"ocio_familiar",direccion:"Parque de la Paloma S/N, 29630 Benalmádena, Málaga",ciudad:"Benalmádena",comunidad_autonoma:"Andalucía",horario_general:"Consultar web oficial",hora_silenciosa:null,descripcion:"Parque marino adherido al programa Hidden Disabilities Sunflower.",fuente_url:"https://hdsunflower.com/find-the-sunflower",verificacion:"VERIFICADO",fecha_verificacion:"2026-04-17"}},
+
+  {c:[-1.8660,38.9940],p:{id:"SUN-011",nombre:"IES Tomás Navarro Tomás (Albacete)",tipo:"sunflower",subtipo:"centro_educativo",direccion:"Avenida España 40, 02008 Albacete",ciudad:"Albacete",comunidad_autonoma:"Castilla-La Mancha",horario_general:"Horario escolar",hora_silenciosa:null,descripcion:"Instituto de educación secundaria adherido al programa Hidden Disabilities Sunflower. Comunidad educativa formada para reconocer y apoyar a alumnos con discapacidades invisibles.",fuente_url:"https://hdsunflower.com/find-the-sunflower",verificacion:"VERIFICADO",fecha_verificacion:"2026-04-17"}},
+
+  {c:[-6.2290,36.5980],p:{id:"SUN-012",nombre:"Asociación Autismo El Puerto",tipo:"sunflower",subtipo:"asociacion",direccion:"C/ Ganado 55, 11500 El Puerto de Santa María, Cádiz",ciudad:"El Puerto de Santa María",comunidad_autonoma:"Andalucía",horario_general:"Consultar con la asociación",hora_silenciosa:null,descripcion:"Asociación de apoyo a personas con TEA adherida al programa Hidden Disabilities Sunflower. Ofrece servicios y apoyo a personas con autismo y sus familias.",fuente_url:"https://hdsunflower.com/find-the-sunflower",verificacion:"VERIFICADO",fecha_verificacion:"2026-04-17"}},
+
+  {c:[-5.3497,36.1502],p:{id:"SUN-013",nombre:"Gibraltar Airport",tipo:"sunflower",subtipo:"aeropuerto_sunflower",direccion:"British Lines Road, GX11 1AA Gibraltar",ciudad:"Gibraltar",comunidad_autonoma:"Gibraltar (territorio británico de ultramar)",horario_general:"Operativo las 24h",hora_silenciosa:null,descripcion:"Aeropuerto de Gibraltar adherido al programa Hidden Disabilities Sunflower. A diferencia de los aeropuertos AENA españoles, aquí sí se reconoce el cordón de girasol oficial.",fuente_url:"https://hdsunflower.com/find-the-sunflower",verificacion:"VERIFICADO",fecha_verificacion:"2026-04-17"}},
+
+  {c:[-5.3520,36.1460],p:{id:"SUN-014",nombre:"Special Needs Action Group (Gibraltar)",tipo:"sunflower",subtipo:"asociacion",direccion:"Commonwealth Park, Queensway, GX11 1AA Gibraltar",ciudad:"Gibraltar",comunidad_autonoma:"Gibraltar (territorio británico de ultramar)",horario_general:"Consultar con la organización",hora_silenciosa:null,descripcion:"Organización de apoyo a personas con necesidades especiales en Gibraltar, adherida al programa Hidden Disabilities Sunflower.",fuente_url:"https://hdsunflower.com/find-the-sunflower",verificacion:"VERIFICADO",fecha_verificacion:"2026-04-17"}},
+
+  {c:[-9.1500,38.7260],p:{id:"SUN-015",nombre:"Bolt Support (Lisboa, Portugal)",tipo:"sunflower",subtipo:"servicio",direccion:"Praça do Marquês de Pombal, 1250-162 Lisboa, Portugal",ciudad:"Lisboa",comunidad_autonoma:"Portugal (fuera de España)",horario_general:"Consultar web oficial",hora_silenciosa:null,descripcion:"Servicio en Lisboa adherido al programa Hidden Disabilities Sunflower. ℹ️ Este lugar está en Portugal, fuera del territorio español, pero se incluye por su proximidad geográfica y por estar listado en el directorio oficial de Sunflower.",fuente_url:"https://hdsunflower.com/find-the-sunflower",verificacion:"VERIFICADO",fecha_verificacion:"2026-04-17"}}
+];
+
+const lyr  = L.layerGroup().addTo(map);
+const mkrs = FEATURES.map(({c,p}) => {
+  const m = L.marker([c[1],c[0]], {icon:mkMarker(p.tipo)});
+  m.bindPopup(mkPopup(p), {maxWidth:330});
+  m._tipo = p.tipo;
+  return m;
+});
+
+let active = "all";
+function render() {
+  lyr.clearLayers();
+  const vis = mkrs.filter(m => active === "all" || m._tipo === active);
+  vis.forEach(m => lyr.addLayer(m));
+  document.getElementById("count-num").textContent = vis.length;
+}
+function ft(cat) {
+  active = cat;
+  document.querySelectorAll(".chip").forEach(c => c.classList.toggle("active", c.dataset.cat === cat));
+  render();
+}
+function openSuggest() {
+  alert("Para sugerir un nuevo lugar necesitamos:\n\n• Nombre y dirección\n• Tipo (supermercado, biblioteca, espacio natural, aeropuerto…)\n• Descripción de la medida\n• URL de una fuente pública que lo confirme\n\nTodos los lugares se verifican antes de publicarse.\nEnvía la info a: [tu-email@ejemplo.com]");
+}
+render();
+</script>
+</body>
+</html>
